@@ -1,0 +1,49 @@
+%! Author = Nectarios Chroniaris
+%! Date = 2022-02-28
+
+% Preamble
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\PassOptionsToPackage{hyphens}{url}\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{amsmath}
+
+\newcommand{\ts}{\textsuperscript}
+
+\lstset{
+    frame=tb,
+    aboveskip=3mm,
+    belowskip=3mm,
+    showstringspaces=false,
+    columns=flexible,
+    basicstyle={\small\ttfamily},
+    numbers=none,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{dkgreen},
+    stringstyle=\color{mauve},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=3
+}
+
+%! suppress = LineBreak
+%! suppress = TooLargeSection
+\begin{document}
+
+    \title{magpieCTF 2022 - Turn-Key Writeup}
+    \author{Nectarios Chroniaris}
+
+    \maketitle
+
+
+    \section{Something}
+
+    \begin{lstlisting}[gobble=8,label={lst:something}]
+        some.code()
+    \end{lstlisting}
+
+\end{document}
