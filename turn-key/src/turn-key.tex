@@ -13,8 +13,16 @@
 
 \newcommand{\ts}{\textsuperscript}
 
+\definecolor{verylightgray}{gray}{0.95}
+
+% https://tex.stackexchange.com/a/119864
 \lstset{
-    frame=tb,
+    frame=single,
+    framesep=6pt,
+    framerule=0pt,
+    xleftmargin=8pt,
+    mathescape=false,
+    backgroundcolor=\color{verylightgray},
     aboveskip=3mm,
     belowskip=3mm,
     showstringspaces=false,
@@ -87,14 +95,58 @@
         \end{itemize}
     \end{enumerate}
 
+    \pagebreak
+
 
     \section{Full Solution \& Thought Process}\label{sec:full-solution-thought-process}
 
     \subsection{Specification}\label{subsec:specification}
 
+    Every good protocol starts off with a specification. We want to read this thoroughly and make sure we understand it, because then scripting will be easier. Here we note that:
+
+    \begin{itemize}
+        \item There are 3 vaults at different addresses.
+        \item The protocol does not seem to rely on any other application-level protocol (like HTTP, for example), so it's likely just raw TCP messaging.
+        \item The protocol involves us sending strings back to one another.
+        \item In the final step we have to send a challenge string back.
+        \begin{itemize}
+            \item This means we have to make sure we read the data the server sent us so we can send it back.
+        \end{itemize}
+        \item There is no mention of what port(s) this service runs on, so we will have to find this ourselves.
+        \item We have to get responses from all servers within 2.4s or else the encryption rotates.
+        \item We know what output to expect in both the successful and unsuccessful cases.
+    \end{itemize}
+
     \subsection{Finding Ports}\label{subsec:finding-ports}
 
-    \subsection{Playing Around With \texttt{nc}}\label{subsec:playing-around-with-nc}
+    Fresh off our exciting specification adventure, it seems that the first step is to find where the service we want is hosted. We know the IP addresses (\verb`vaultX.momandpopsflags.ca`), but not the port.
+
+    Pick one of the three servers to scan, and use any port scanning tool of your choice. I chose to use \verb`nmap`, since it was installed on my system.
+
+    \begin{lstlisting}[gobble=8,label={lst:nmap-command}]
+        $ nmap -p 1-65535 -T4 -A -v vault1.momandpopsflags.ca
+    \end{lstlisting}
+
+    \pagebreak
+
+    \noindent A quick explanation of the options:
+
+    \begin{table*}[h!]
+        \centering
+        \label{tab:nmap-command}
+        \begin{tabular}{|r|l|}
+            \hline
+            \textbf{Flag} & \textbf{Description}                            \\ \hline
+            \verb`-p N-M` & scan ports from \verb`N` to \verb`M`            \\ \hline
+            \verb`-T4`    & Aggressive timing template, speeds up execution \\ \hline
+            \verb`-A`     & Aggressive scan, gives more information         \\ \hline
+            \verb`-v`     & Verbose logging                                 \\ \hline
+        \end{tabular}
+    \end{table*}
+
+    After running this (it might take a couple of minutes!) you should see an open TCP port at 5555. That looks pretty out-of-place, so that's probably the one we want. In the next section we'll verify this by using netcat (\verb`nc`) to poke the service and see if it's the right one.
+
+    \subsection{Playing Around With netcat}\label{subsec:playing-around-with-nc}
 
     \subsection{Naive Script}\label{subsec:naive-script}
 
