@@ -40,10 +40,84 @@
     \maketitle
 
 
-    \section{Something}
+    \section{Preamble}\label{sec:preamble}
 
-    \begin{lstlisting}[gobble=8,label={lst:something}]
-        some.code()
-    \end{lstlisting}
+    The intended solve, as documented on \href{https://github.com/infosec-ucalgary/magpieCTF2022-public/tree/main/challenges/networks/turn-key}{magpieCTF's public GitHub repo}, involves renting/using servers that are physically close to the vaults, in order to get each request to complete in the required 300 or so milliseconds.
+
+    \bigskip
+
+    However, by taking some clever shortcuts in the design of the protocol, we can reduce round-trip delays and otherwise unnecessary overhead, to squeeze the total delay under the required amount (yes, even for the server in Bangalore!).
+
+
+    \section{Abridged Solution}\label{sec:abridged-solution}
+
+    \begin{enumerate}
+        \item Read the specification and understand what messages are required to fulfill the protocol.
+        \begin{itemize}
+            \item Use \verb`nmap` to scan the vault servers to see which port the protocol is hosted under.
+            \item \verb`nmap -p 1-65535 -T4 -A -v vault1.momandpopsflags.ca`
+            \item i.e.\ ``scan all ports from 1--65535, be aggressive (\verb`-T4`, \verb`-A`) and log verbosely''.
+        \end{itemize}
+        \item After finding the correct port (thankfully they are all the same!), try to connect with \verb`nc` to see if it works.
+        \begin{itemize}
+            \item \verb`nc vault1.momandpopsflags.ca 5555`
+            \item Test out the protocol, realize that your human fingers are much too slow to get the partial flag.
+        \end{itemize}
+        \item Start to write a script in your programming language of choice that can do TCP socket programming.
+        \begin{itemize}
+            \item The easiest IMO is Python 3, using the \verb`socket` library.
+            \item Don't worry about efficiency in this step, just make sure that it works (the protocol successfully terminates).
+            \item If you can get one vault, great! Remember we have to get all 3 at the same time.
+        \end{itemize}
+        \item Find room to improve efficiency and reduce overhead.
+        \begin{itemize}
+            \item Realize that you don't have to waste time reading, writing, and reading, and writing before something useful happens. You can just \textbf{immediately} send BOTH messages since the first two responses from the server are neither useful nor have any dynamic information.
+            \item Remember it's fine to hardcode stuff here, because we want to break this specific protocol, and not have a general solution!
+        \end{itemize}
+        \item Run against all the servers at the same time to get all the necessary information for the key.
+        \begin{itemize}
+            \item Assuming your script is fast enough, you can run it all from the same machine using shell trickery:
+            \item \verb`python3 <script> vault1 &` \\
+            \verb`    python3 <script> vault2 &` \\
+            \verb`    python3 <script> vault3 & wait`
+        \end{itemize}
+        \item Decrypt the flag using the 3-part key, initial value, and ciphertext from the vaults, using any tool of your choice.
+        \begin{itemize}
+            \item \href{https://gchq.github.io/CyberChef}{CyberChef is pretty convenient}, but any tool works, as there is nothing special going on here besides the key being split up into 3 pieces.
+        \end{itemize}
+    \end{enumerate}
+
+
+    \section{Full Solution \& Thought Process}\label{sec:full-solution-thought-process}
+
+    \subsection{Specification}\label{subsec:specification}
+
+    \subsection{Finding Ports}\label{subsec:finding-ports}
+
+    \subsection{Playing Around With \texttt{nc}}\label{subsec:playing-around-with-nc}
+
+    \subsection{Naive Script}\label{subsec:naive-script}
+
+    \subsection{Improved Script}\label{subsec:improved-script}
+
+    \subsection{Turn All The Keys!}\label{subsec:turn-all-the-keys}
+
+    \subsection{Decrypting the Flag}\label{subsec:decrypting-the-flag}
+
+    % (1/3): 0x9DEFE0C566FE0264664BE
+    % IV: 0x4F5C25C4954F273472EC67AC494DADBD
+    % Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD702F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+
+    % (2/3): 0x44D8BFCD0F625A8182A13
+    % IV: 0x4F5C25C4954F273472EC67AC494DADBD
+    % Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD702F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+
+    % (3/3): 0xFEE73E2A20D92242FA45B5
+    % IV: 0x4F5C25C4954F273472EC67AC494DADBD
+    % Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD702F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+
+
+    \section{Conclusion}\label{sec:conclusion}
+
 
 \end{document}
