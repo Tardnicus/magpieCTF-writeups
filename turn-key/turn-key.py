@@ -31,8 +31,6 @@ def main(argv):
         # get_challenge extracts the challenge string from the data the server sent us, and we just send it right back (part of protocol)
         s.sendall(get_challenge(buffer_size, s))
 
-        print("hello")
-
         # Read the response from the server after replying with the challenge string (hopefully we were quick enough!)
         res = get_response(buffer_size, s)
         print(res)
