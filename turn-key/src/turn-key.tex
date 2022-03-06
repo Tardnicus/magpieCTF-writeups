@@ -289,26 +289,65 @@
 
     \subsection{Turn All The Keys!}\label{subsec:turn-all-the-keys}
 
+    Assuming you did everything right, you can successfully complete the protocol on all three servers. Great! All we need to do now is to execute 3 instances of our script, each pointed at a different vault, so we can get the AES information at the same time.
+
+    We can use some shell trickery to achieve this, assuming you have the address of the server passed in as an argument:
+
+    \begin{lstlisting}[gobble=8,label={lst:parallel-commands},language=Bash]
+        $ python3 turn-key.py vault1.momandpopsflags.ca &
+            python3 turn-key.py vault2.momandpopsflags.ca &
+            python3 turn-key.py vault3.momandpopsflags.ca & wait
+    \end{lstlisting}
+
+    The \verb`&` character (very distinct from \verb`&&`) in most shells means ``execute in the background as a job'', preventing the shell from blocking until the first command executes. This allows us to ``schedule'' 3 commands so they execute roughly at the same time. The \verb`wait` command at the end there just tells the shell to wait for all its children to finish before it unblocks. This just makes the terminal output a bit cleaner, but it's not at all required.
+
+    Assuming all 3 instances of the program succeeded, you should get an output similar to the following (sans any debug text or extraneous characters):
+
+    \begin{lstlisting}[gobble=8,label={lst:server-output}]
+        (1/3): 0x9DEFE0C566FE0264664BE
+        IV: 0x4F5C25C4954F273472EC67AC494DADBD
+        Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD70
+                        2F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+
+        (2/3): 0x44D8BFCD0F625A8182A13
+        IV: 0x4F5C25C4954F273472EC67AC494DADBD
+        Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD70
+                        2F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+
+        (3/3): 0xFEE73E2A20D92242FA45B5
+        IV: 0x4F5C25C4954F273472EC67AC494DADBD
+        Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD70
+                        2F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+    \end{lstlisting}
+
+    We can verify that we've gotten data from \textbf{the same rotation} by checking if all the \verb`Ciphertext` and \verb`IV` values match -- which in this case, they do. Victory! Now all we have to do is to decipher the 3-part AES ciphertext using all of this information.
+
     \subsection{Decrypting the Flag}\label{subsec:decrypting-the-flag}
 
-    % (1/3): 0x9DEFE0C566FE0264664BE
-    % IV: 0x4F5C25C4954F273472EC67AC494DADBD
-    % Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD702F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+    Now that we have all the information from the servers, it's time to stitch the key together, and try to decrypt the ciphertext with it and the initial value (IV). The key goes together following the prompts we have from the servers (1/3, then 2/3, then 3/3). Note that I've broken the lines up, so it fits on the page:
 
-    % (2/3): 0x44D8BFCD0F625A8182A13
-    % IV: 0x4F5C25C4954F273472EC67AC494DADBD
-    % Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD702F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+    \begin{lstlisting}[gobble=8,label={lst:aes-key}]
+        Key: 0x9DEFE0C566FE0264664BE44D8BFCD0F6
+                25A8182A13FEE73E2A20D92242FA45B5
+    \end{lstlisting}
 
-    % (3/3): 0xFEE73E2A20D92242FA45B5
-    % IV: 0x4F5C25C4954F273472EC67AC494DADBD
-    % Ciphertext: 0x917774AA5412A434FA9EC619585D07E8DF1A48952E15ACCFD702F7B47F2C8610685164ACF4C4CE919C4F436615CFD275
+    \pagebreak
 
+    Once we have the key, we can use something like \href{https://gchq.github.io/CyberChef}{CyberChef} to perform the decryption. But if you're feeling adventurous you can use \verb`openssl`, \verb`gpg`, or any tool of your choice. Here's a sample output of the decryption process with CyberChef:
+
+    \noindent\includegraphics[width=\textwidth]{images/cyberchef}
+
+    Perfect, we got the flag, all without renting a single server! My wallet survives another day longer.
 
     \section{Conclusion}\label{sec:conclusion}
+
+    Thanks to James Lowther and Jeremy Stuart for making such a fun challenge. I had a lot of fun solving it, and a lot of fun doing this writeup! Hopefully it's not too long of a report :-P\@.
 
     \pagebreak
 
     \appendix
+
+
     \section{Full Optimized Code}\label{sec:full-optimized-code}
 
     \begin{lstlisting}[gobble=8,label={lst:full-code},language=Python,basicstyle={\scriptsize\ttfamily}]
