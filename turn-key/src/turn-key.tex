@@ -219,11 +219,11 @@
 
     \subsection{Improved Script}\label{subsec:improved-script}
 
-    This section describes what I think to be the crux of this unique solution to this challenge. As mentioned before, the intended solve is to rent/use a VPS that is physically close to the vaults. In fact, during the CTF, I really tried to consider this solution. At the time, my script worked for all vaults except the one in Bangalore, so I spent about 30 minutes on Google, trying to research my options on VPS hosting in India. I figured that there might have been a company that at least offered free trials, but was ultimately not able to find a service that had an easy way to rent or try out a VPS just for a couple of minutes.
+    This section describes what I think to be the crux of this unique solution to this challenge. As mentioned before, the intended solve is to rent/use a VPS that is physically close to each of the vaults. In fact, during the CTF, I really tried to consider this solution. At the time, my script worked for all vaults except the one in Bangalore, so I spent about 30 minutes on Google, trying to research my options on VPS hosting in India. I figured that there might have been a company that at least offered free trials, but was ultimately not able to find a service that had an easy way to rent or try out a VPS just for a couple of minutes.
 
     \bigskip
 
-    In an effort solely motivated by my desire to not spend any money \ts{how can you blame me? :-P}, I decided to look at the script I wrote and see if there was \textbf{any} places where I could improve the efficiency or reduce overhead. I figured I was fighting a losing battle, because Python and efficiency don't always go hand-in-hand. I was even prepared to rewrite my protocol in C, in the case that nothing I did worked. Nevertheless, I pressed on.
+    In an effort solely motivated by my desire to not spend any money \ts{how can you blame me? :-P}, I decided to look at the script I wrote and see if there were \textbf{any} places where I could improve the efficiency or reduce overhead. I figured I was fighting a losing battle, because Python and efficiency don't always go hand-in-hand. I was even prepared to rewrite my protocol in C, in the case that nothing I did worked. Nevertheless, I pressed on.
 
     \bigskip
 
@@ -251,7 +251,7 @@
 
     \pagebreak
 
-    The following is a form of a sequence diagram that illustrates how exactly we benefit from such an optimization. The vertical axis represents time, but it is very \textbf{not} to scale:
+    The following is a form of a sequence diagram that illustrates how exactly we benefit from such an optimization. The vertical axis represents time, but it is very much \textbf{not} to scale:
 
     \noindent\includegraphics[width=\textwidth]{images/network_diagram}
 
@@ -268,7 +268,7 @@
         s.sendall(b"SEND FLAG\n")
     \end{lstlisting}
 
-    Notice how I duplicated the \verb`sendall()` method. This seems pretty innocent at first glance, until you realize that the \href{https://docs.python.org/3/library/socket.html#socket.socket.sendall}{method is blocking}. That makes sense, because you want to make sure as a TCP participant you are making a best-effort to send all the bytes you want to send. However, that's bad for us, because we've duplicated the call --- meaning we're wasting time blocking on the second call when the information from the second call could have been included in the first:
+    Notice how I duplicated the \verb`sendall()` method. This seems pretty innocent at first glance, until you realize that the \href{https://docs.python.org/3/library/socket.html#socket.socket.sendall}{method is blocking}. Of course, this makes sense, because you want to make sure as a TCP participant you are making a best-effort to send all the bytes you want to send. However, that's bad for us, because we've duplicated the call --- meaning we're wasting time blocking on the second call when the information from the second call could have been included in the first:
 
     \begin{lstlisting}[gobble=8,label={lst:second-efficiency-2},language=Python]
         s.sendall(b"INITIALIZE CONNECTION\nSEND FLAG\n")
@@ -299,7 +299,7 @@
             python3 turn-key.py vault3.momandpopsflags.ca & wait
     \end{lstlisting}
 
-    The \verb`&` character (very distinct from \verb`&&`) in most shells means ``execute in the background as a job'', preventing the shell from blocking until the first command executes. This allows us to ``schedule'' 3 commands so they execute roughly at the same time. The \verb`wait` command at the end there just tells the shell to wait for all its children to finish before it unblocks. This just makes the terminal output a bit cleaner, but it's not at all required.
+    The \verb`&` character (very distinct from \verb`&&`) in most shells means ``execute in the background as a job'', freeing up the shell for other tasks. This allows us to effectively ``schedule'' 3 commands so they execute roughly at the same time. The \verb`wait` command at the end there just tells the shell to wait for all its children to finish before it unblocks. This just makes the terminal output a bit cleaner, but it's not at all required.
 
     Assuming all 3 instances of the program succeeded, you should get an output similar to the following (sans any debug text or extraneous characters):
 
@@ -335,13 +335,18 @@
 
     Once we have the key, we can use something like \href{https://gchq.github.io/CyberChef}{CyberChef} to perform the decryption. But if you're feeling adventurous you can use \verb`openssl`, \verb`gpg`, or any tool of your choice. Here's a sample output of the decryption process with CyberChef:
 
+    \medskip
+
     \noindent\includegraphics[width=\textwidth]{images/cyberchef}
+
+    \medskip
 
     Perfect, we got the flag, all without renting a single server! My wallet survives another day longer.
 
+
     \section{Conclusion}\label{sec:conclusion}
 
-    Thanks to James Lowther and Jeremy Stuart for making such a fun challenge. I had a lot of fun solving it, and a lot of fun doing this writeup! Hopefully it's not too long of a report :-P\@.
+    Thanks to James Lowther and Jeremy Stuart for making such a fun challenge. I had a lot of fun solving it, and a lot of fun doing this writeup! Thank you also to my team for inviting me to (my first ever) CTF, it was quite the experience!
 
     \pagebreak
 
