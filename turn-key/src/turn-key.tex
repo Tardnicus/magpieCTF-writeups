@@ -146,7 +146,29 @@
 
     After running this (it might take a couple of minutes!) you should see an open TCP port at 5555. That looks pretty out-of-place, so that's probably the one we want. In the next section we'll verify this by using netcat (\verb`nc`) to poke the service and see if it's the right one.
 
-    \subsection{Playing Around With netcat}\label{subsec:playing-around-with-nc}
+    \subsection{Playing Around With netcat}\label{subsec:playing-around-with-netcat}
+
+    Now that we've scanned all the ports, we want to test to see if we have the right one, and that we're talking to the right protocol. The likeliest port from the scan was 5555, so we try to connect using a tool like \verb`netcat`.
+
+    \verb`netcat` is a very useful tool for testing arbitrary TCP/UDP connections. In the \hyperref[subsec:specification]{specification section}, we didn't find any evidence of an application-layer protocol and figured it was implemented using raw TCP messages. \verb`netcat` is perfect for this use-case.
+
+    \bigskip
+
+    Using the following command we can establish a connection and start sending messages:
+
+    \begin{lstlisting}[gobble=8,label={lst:netcat-command}]
+        $ nc vault1.momandpopsflags.ca 5555
+    \end{lstlisting}
+
+    After running this, you should immediately see a message from the server, ``\verb`oh hai!`''. This matches exactly with what we were expecting from the specification, so we know we're in the right place. The terminal appears to block, but that's because it's waiting for us to type something to send to the server.
+
+    At this point it's a good idea to emulate the protocol to gain understanding about what exactly the server expects in terms of messages, etc. With TCP messages like this, you'll want to make sure you end your message with a newline so that it is sent. This particular point will be important later, but for the purposes of \verb`netcat`, it is sufficient just to hit return/enter.
+
+    You may try to interact with all 3 vaults, but a cursory probe (just connecting, not going through the whole protocol) reveals that the services seem to be exactly the same, and are hosted on the same port on all 3 vaults (5555).
+
+    \bigskip
+
+    After manually playing around with the protocol (and likely getting the ``unsuccessful'' output at the end), it's now time to script, so we can get the outputs in the required amount of time.
 
     \subsection{Naive Script}\label{subsec:naive-script}
 
