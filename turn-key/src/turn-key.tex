@@ -10,6 +10,7 @@
 \usepackage{makecell}
 \usepackage{xcolor}
 \usepackage{amsmath}
+\usepackage{graphicx}
 
 \newcommand{\ts}{\textsuperscript}
 
@@ -176,7 +177,115 @@
 
     \subsection{Naive Script}\label{subsec:naive-script}
 
+    In this section \textbf{all you want to focus on is correctness}. There's no point in optimizing a broken program, so take it one step at a time. Here I am going to use Python 3 and the \verb`socket` library, mostly because I am familiar with it, and python scripts have a fast turnaround time (no need to set up build tools, etc.)
+
+    First, we start off by establishing a connection to the vault, assuming that \verb`host` and \verb`port` are defined (these can be CLI arguments):
+
+    \begin{lstlisting}[gobble=8,label={lst:script-establish},language=Python]
+        import socket
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            ip = socket.gethostbyname(host)
+            s.connect((ip, port))
+    \end{lstlisting}
+
+    After this the server should already be sending us messages, and we should be set up to read them. Following the specification exactly, we read the ``\verb`oh hai!`'' message:
+
+    \begin{lstlisting}[gobble=8,label={lst:script-reading-first},language=Python]
+        server_data = s.recv(4096)    # 4096 is the buffer size
+        print(server_data)            # b'oh hai!\n'
+    \end{lstlisting}
+
+    After reading \footnote{For the sake of simplicity, I am omitting the necessary idiom for \texttt{s.recv()}. The call usually blocks while the socket is open, requiring the use of a while loop and null checking. The full code can be viewed \hyperref[sec:full-optimized-code]{at the end of the document} or attached as a file alongside this report.} and printing the output (optional!) we can see that we get a bytestring representation of the message from the socket. We continue implementing the protocol, sending our strings next:
+
+    \begin{lstlisting}[gobble=8,label={lst:script-writing-first},language=Python]
+        s.sendall(b"INITIALIZE CONNECTION\n")
+    \end{lstlisting}
+
+    Here's where that newline comes into play. Since we're trying to script this, we \textbf{must} include a trailing newline in our message or else the TCP socket on our end will hang waiting for the rest of our message. This was the source of some confusion when creating my script, so watch out for that if you find that your program hangs prematurely.
+
+    \bigskip
+
+    By alternating between \verb`s.sendall()`'s and \verb`s.recv()`'s, you can pretty easily implement the protocol correctly. Note that when the server sends you the challenge string you have to extract it and send it back. You can either use regex capture groups or hardcode the indices to slice the challenge string out of the server response. The following is an example in regex:
+
+    \begin{lstlisting}[gobble=8,label={lst:regex-extract},language=Python]
+        server_data = s.recv(4096)
+        match = re.findall(b'challenge string (.{7}\\n)', server_data)
+        if match:
+            return match[0]
+    \end{lstlisting}
+
+    Hopefully by now you should have a script that works (in terms of receiving a successful output), at least for one of the 3 vaults. That's perfectly normal since part of the challenge here is that the vaults are spread across the world. The important part here is making sure your script is correct.
+
     \subsection{Improved Script}\label{subsec:improved-script}
+
+    This section describes what I think to be the crux of this unique solution to this challenge. As mentioned before, the intended solve is to rent/use a VPS that is physically close to the vaults. In fact, during the CTF, I really tried to consider this solution. At the time, my script worked for all vaults except the one in Bangalore, so I spent about 30 minutes on Google, trying to research my options on VPS hosting in India. I figured that there might have been a company that at least offered free trials, but was ultimately not able to find a service that had an easy way to rent or try out a VPS just for a couple of minutes.
+
+    \bigskip
+
+    In an effort solely motivated by my desire to not spend any money \ts{how can you blame me? :-P}, I decided to look at the script I wrote and see if there was \textbf{any} places where I could improve the efficiency or reduce overhead. I figured I was fighting a losing battle, because Python and efficiency don't always go hand-in-hand. I was even prepared to rewrite my protocol in C, in the case that nothing I did worked. Nevertheless, I pressed on.
+
+    \bigskip
+
+    In general, I had two ``epiphanies'' when it came to the protocol that I wrote, that ultimately led me to the solution you're reading.
+
+    The first has to do with the leading end of the protocol. Recall that you have to do this ``handshake'' of sorts with the server until you get to the part where it sends you the flag. This process involves you reading an ``\verb`oh hai!`'', sending a ``\verb`INITIALIZE CONNECTION`'', reading a ``\verb`Connection successfully...`'', and finally ending with you sending a ``\verb`SEND FLAG`''. Notice that no matter when you establish this connection, these messages are \textbf{exactly the same, every single time}. So why are we wasting time doing this TCP dance (read, write, read, write) when (a) we deterministically know what commands we have to send, and (b) we don't really care for the first two server messages to begin with?
+
+    This leads to the first improvement -- IMMEDIATELY sending the commands we need to send to fulfil the protocol, right out of the gate:
+
+    \begin{lstlisting}[gobble=8,label={lst:first-efficiency},language=Python]
+        s.connect((ip, port))
+
+        # Send both commands IMMEDIATELY, not caring whether there is data to read or not
+        s.sendall(b"INITIALIZE CONNECTION\n")
+        s.sendall(b"SEND FLAG\n")
+
+        # get_challenge() reads the socket for data, and extracts the challenge string.
+        # we just send the challenge string right back (part of protocol)
+        s.sendall(get_challenge(buffer_size, s))
+    \end{lstlisting}
+
+    This seems dirty, as if we're betraying some strange TCP god out there, for daring to break from the usual structure. But if you think about it, TCP doesn't actually care if we read data from the socket or not. On one hand, the server is oblivious to our shenanigans, because from its perspective, it's already sent the data to us, and it has no idea if we chose to read it or not. The data it sent to us is just sitting in out TCP buffer, waiting patiently. On the other hand, we've already sent our data (likely before any data \textbf{actually} arrives in our TCP buffer), and the server has no idea if we sent this data in response to reading their messages or not.
+
+    In other words, what we're doing here is making sure we're not \textbf{wasting} time \textit{blocking} the execution of our program while waiting for data from the server we're ultimately going to throw away. We're sending it anyway, pretending as if we read what the server wrote and responding accordingly.
+
+    \pagebreak
+
+    The following is a form of a sequence diagram that illustrates how exactly we benefit from such an optimization. The vertical axis represents time, but it is very \textbf{not} to scale:
+
+    \noindent\includegraphics[width=\textwidth]{images/network_diagram}
+
+    \noindent Note that in the optimized protocol:
+    \begin{itemize}
+        \item TCP ACK, INIT, and FLAG are sent pretty much at the exact same time
+        \item The client only starts reading after a total of 3 messages are sent from the server
+    \end{itemize}
+
+    However, even after this I was still not able to get the vault in Bangalore. I was about 50--100ms outside the window, so I clearly had to find more room to improve. I have to give credit to one of my CTF teammates, Mark Holmstrom, who nudged me in the right direction with this particular optimization. We were talking over voice chat, and as I was \href{https://en.wikipedia.org/wiki/Rubber_duck_debugging}{explaining my progress so far}, he helped me realize that I was wasting time blocking when I was sending my initial messages. In particular, we're concerned with the following two lines:
+
+    \begin{lstlisting}[gobble=8,label={lst:second-efficiency-1},language=Python]
+        s.sendall(b"INITIALIZE CONNECTION\n")
+        s.sendall(b"SEND FLAG\n")
+    \end{lstlisting}
+
+    Notice how I duplicated the \verb`sendall()` method. This seems pretty innocent at first glance, until you realize that the \href{https://docs.python.org/3/library/socket.html#socket.socket.sendall}{method is blocking}. That makes sense, because you want to make sure as a TCP participant you are making a best-effort to send all the bytes you want to send. However, that's bad for us, because we've duplicated the call --- meaning we're wasting time blocking on the second call when the information from the second call could have been included in the first:
+
+    \begin{lstlisting}[gobble=8,label={lst:second-efficiency-2},language=Python]
+        s.sendall(b"INITIALIZE CONNECTION\nSEND FLAG\n")
+    \end{lstlisting}
+
+    This frees us up from blocking a second time, not to mention we've probably removed some extra overhead that the \verb`.sendall()` method adds. The important thing to realize here is that TCP messages are effectively just bytestreams delimited by newlines, so it makes no semantic difference to bundle them together like this --- the server will read it in the same way.
+
+    \bigskip
+
+    As a bonus, a minor change I also made was replacing \hyperref[lst:regex-extract]{the regex method of extracting the challenge string} with a hardcoded string slicing solution:
+
+    \begin{lstlisting}[gobble=8,label={lst:regex-efficiency},language=Python]
+        if server_data[-15:-12] == b'str':
+            return server_data[-8:]
+    \end{lstlisting}
+
+    Note that I made this change in conjunction with the \verb`sendall()` change, so I am unsure if this actually impacted the results. Side note: If you're screaming at me right now about hardcoding these indices, good --- that means your programmer senses are working correctly. In this case though it's justified because our aim is to break \textbf{this particular} protocol, and not have a general solution.
 
     \subsection{Turn All The Keys!}\label{subsec:turn-all-the-keys}
 
